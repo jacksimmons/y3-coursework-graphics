@@ -40,9 +40,9 @@ class EnvironmentShader(BaseShaderProgram):
         self.uniforms['VM'].bind(np.matmul(V, M))
 
         # set the PVM matrix uniform
-        self.uniforms['VMiT'].bind(np.linalg.inv(np.matmul(V, M))[:3, :3].transpose())
+        self.uniforms['VM_it'].bind(np.linalg.inv(np.matmul(V, M))[:3, :3].transpose())
 
-        self.uniforms['VT'].bind(V.transpose()[:3, :3])
+        self.uniforms['V_t'].bind(V.transpose()[:3, :3])
 
 
 class EnvironmentMappingTexture(CubeMap):

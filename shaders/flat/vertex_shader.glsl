@@ -1,20 +1,23 @@
-#version 130		// required to use OpenGL core standard
+#version 330 core
 
 //=== in attributes are read from the vertex array, one row per instance of the shader
-in vec3 position;	// the position attribute contains the vertex position
-//in vec3 normal;		// store the vertex normal
-in vec3 color; 		// store the vertex colour
-in vec2 texCoord;
+// Forgoes glBindAttribLocation call
+// https://www.khronos.org/opengl/wiki/Layout_Qualifier_(GLSL)
+layout (location = 0) in vec3 position;
+layout (location = 1) in vec3 normal;
+layout (location = 2) in vec3 colour;
+layout (location = 3) in vec2 tex_coord;
 
 //=== out attributes are interpolated on the face, and passed on to the fragment shader
 out vec3 fragment_color;        // the output of the shader will be the colour of the vertex
-out vec3 position_view_space;   // the position of the vertex in view coordinates
-out vec2 fragment_texCoord;
+out vec3 fragment_normal;
+out vec3 fragment_pos;   // the position of the vertex in view coordinates
+out vec2 fragment_tex_coord;
 
 //=== uniforms
-uniform mat4 PVM; 	// the Perspective-View-Model matrix is received as a Uniform
-uniform mat4 VM; 	// the View-Model matrix is received as a Uniform
-uniform mat3 VMiT;  // The inverse-transpose of the view model matrix, used for normals
+uniform mat4 PVM;
+uniform mat4 VM;
+uniform mat3 VM_it;
 uniform int mode;	// the rendering mode (better to code different shaders!)
 
 void main(){
@@ -26,12 +29,7 @@ void main(){
     // 2. calculate vectors used for shading calculations
     // those will be interpolate before being sent to the
     // fragment shader.
-    position_view_space = vec3(VM*vec4(position, 1.0f));
-    //normal_view_space = normalize(VMiT*normal);
-
-    // 3. forward the texture coordinates.
-    fragment_texCoord = texCoord;
-
-    // 3. for now, we just pass on the color from the data array.
-    fragment_color = color;
-}
+    fragment_pos = vec3(VM * vec4(position, 1.0f));
+    fragment_normal = VM_it * normalize(normal);
+    fragment_tex_coord = tex_coord;
+}   

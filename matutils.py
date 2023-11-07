@@ -44,6 +44,11 @@ def rotationMatrixY(angle):
     return R
 
 
+def rotationMatrix(x, y, z):
+    return np.matmul(rotationMatrixX(x), np.matmul(rotationMatrixY(y),
+                     rotationMatrixZ(z)))
+
+
 def poseMatrix(position=[0,0,0], orientation=0, scale=1):
     '''
     Returns a combined TRS matrix for the pose of a model.

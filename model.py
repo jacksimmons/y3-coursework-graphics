@@ -5,7 +5,7 @@ import numpy as np
 
 from mesh import Mesh
 from material import Material
-from matutils import poseMatrix
+from matutils import poseMatrix, translationMatrix
 from shaders import Shader
 
 
@@ -29,6 +29,8 @@ class Model:
 
         self.vao = glGenVertexArrays(1)
         self.vbos = {}
+        self.missing_attributes = []
+
         # Will store indices if using shared vertex representation
         self.index_buffer = None
 
@@ -43,11 +45,12 @@ class Model:
         if data is None:
             print(f"Warning in {self.__class__.__name__}.initialise_vbo: Data array for attribute \
 {name} is None.")
+            self.missing_attributes.append(name)
             return
         
         # Bind location of attribute in GLSL program to the next index (which is len(self.vbos))
         # Location name must correspond to an "in" variable in the GLSL vertex shader code
-        self.attributes[name] = len(self.vbos)
+        self.attributes[name] = len(self.vbos) + len(self.missing_attributes)
         
         # Create a buffer object
         self.vbos[name] = glGenBuffers(1)
@@ -58,7 +61,10 @@ class Model:
 
         # Associate bound buffer to corresponding input location in shader
         # Every vertex shader instance gets one row of the array, so can be processed in parallel
-        glVertexAttribPointer(index=self.attributes[name], size=data.shape[1], type=GL_FLOAT,\
+        print(name)
+        print(data.shape[1])
+        print("At index " + str(self.attributes[name]))
+        glVertexAttribPointer(index=self.attributes[name], size=data.shape[1], type=GL_FLOAT,
             normalized=False, stride=0, pointer=None)
 
         glBufferData(GL_ARRAY_BUFFER, data, GL_STATIC_DRAW)
@@ -77,9 +83,9 @@ class Model:
             self.shader = Shader(shader)
         else:
             self.shader = shader
-        
+                
         # Bind all attributes and compile it
-        self.shader.compile(self.attributes)
+        self.shader.compile()
 
 
     def bind(self):
@@ -95,10 +101,10 @@ class Model:
         # Initialise vertex VBOs and link to shader attributes
         self.initialise_vbo("position", self.mesh.vertices)
         self.initialise_vbo("normal", self.mesh.normals)
-        self.initialise_vbo("color", self.mesh.colors)
-        self.initialise_vbo('texCoord', self.mesh.textureCoords)
-        self.initialise_vbo('tangent', self.mesh.tangents)
-        self.initialise_vbo('binormal', self.mesh.binormals)
+        self.initialise_vbo("colour", self.mesh.colors)
+        self.initialise_vbo("tex_coord", self.mesh.textureCoords)
+        # self.initialise_vbo('tangent', self.mesh.tangents)
+        # self.initialise_vbo('binormal', self.mesh.binormals)
 
         if self.mesh.faces is not None:
             self.index_buffer = glGenBuffers(1)
@@ -141,14 +147,18 @@ class Model:
 
         # Unbind vao
         glBindVertexArray(0)
-
-
-def __del__(self):
-    """Destructor."""
-    for vbo in self.vbos.items():
-        glDeleteBuffers(1, vbo)
     
-    glDeleteVertexArrays(self.vao)
+
+    def set_position(self, position):
+        self.M = translationMatrix(position)
+
+
+    def __del__(self):
+        """Destructor."""
+        for vbo in self.vbos.items():
+            glDeleteBuffers(1, vbo)
+        
+        glDeleteVertexArrays(self.vao)
 
 
 class DrawModelFromMesh(Model):

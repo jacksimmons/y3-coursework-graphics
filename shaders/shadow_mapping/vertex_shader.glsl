@@ -1,19 +1,19 @@
 #version 130		// required to use OpenGL core standard
 
 //=== in attributes are read from the vertex array, one row per instance of the shader
-in vec3 position;	// the position attribute contains the vertex position
-in vec3 normal;		// store the vertex normal
-in vec2 texCoord;
+layout (location = 0) in vec3 position;
+layout (location = 1) in vec3 normal;
+layout (location = 2) in vec2 tex_coord;
 
 //=== out attributes are interpolated on the face, and passed on to the fragment shader
-out vec3 position_view_space;   // the position of the vertex in view coordinates
-out vec3 normal_view_space;     // the normal of the vertex in view coordinates
-out vec2 fragment_texCoord;
+out vec3 fragment_pos;   // the position of the vertex in view coordinates
+out vec3 fragment_normal;     // the normal of the vertex in view coordinates
+out vec2 fragment_tex_coord;
 
 //=== uniforms
-uniform mat4 PVM; 	// the Perspective-View-Model matrix is received as a Uniform
-uniform mat4 VM; 	// the View-Model matrix is received as a Uniform
-uniform mat3 VMiT;  // The inverse-transpose of the view model matrix, used for normals
+uniform mat4 PVM;
+uniform mat4 VM;
+uniform mat4 VM_it; // V * transpose(inverse(M))
 uniform int mode;	// the rendering mode (better to code different shaders!)
 
 
@@ -26,10 +26,9 @@ void main() {
     // 2. calculate vectors used for shading calculations
     // those will be interpolate before being sent to the
     // fragment shader.
-    // TODO WS4
-    position_view_space = vec3(VM*vec4(position,1.0f));
-    normal_view_space = normalize(VMiT*normal);
+    fragment_pos = vec3(VM * vec4(position,1.0f));
+    fragment_normal = normalize(VM_it * normal);
 
     // 3. forward the texture coordinates.
-    fragment_texCoord = texCoord;
+    fragment_tex_coord = texCoord;
 }

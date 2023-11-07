@@ -5,16 +5,6 @@ from matutils import *
 # we will use numpy to store data in arrays
 import numpy as np
 
-import shader_files.flat
-import shader_files.phong
-import shader_files.blinn
-
-shader_modules = {
-    "flat": shader_files.flat,
-    "phong": shader_files.phong,
-    "blinn": shader_files.blinn
-}
-
 
 class Uniform:
     '''
@@ -120,12 +110,8 @@ class BaseShaderProgram:
         fragment_shader_file = None
 
         if name is not None:
-            if name in shader_modules and False:
-                self.vertex_shader_source = shader_modules[name].vertex
-                self.fragment_shader_source = shader_modules[name].fragment
-            else:
-                vertex_shader_file = 'shaders/{}/vertex_shader.glsl'.format(name)
-                fragment_shader_file = 'shaders/{}/fragment_shader.glsl'.format(name)
+            vertex_shader_file = 'shaders/{}/vertex_shader.glsl'.format(name)
+            fragment_shader_file = 'shaders/{}/fragment_shader.glsl'.format(name)
 
         # load the vertex shader GLSL code
         if vertex_shader_file is not None:
@@ -143,48 +129,52 @@ class BaseShaderProgram:
 
         # in order to simplify extension of the class in the future, we start storing uniforms in a dictionary.
         self.uniforms = {
-            'PVM': Uniform('PVM'),  # project view model matrix
+            "PVM": Uniform("PVM"),
         }
 
 
     def add_uniform(self, name):
         self.uniforms[name] = Uniform(name)
 
-    def compile(self, attributes):
+
+    def compile(self):
         '''
         Call this function to compile the GLSL codes for both shaders.
         :return:
         '''
         print('Compiling GLSL shaders [{}]...'.format(self.name))
         try:
+            shader_vert = shaders.compileShader(self.vertex_shader_source, shaders.GL_VERTEX_SHADER)
+            shader_frag = shaders.compileShader(self.fragment_shader_source, shaders.GL_FRAGMENT_SHADER)
+            
             self.program = glCreateProgram()
-            glAttachShader(self.program, shaders.compileShader(self.vertex_shader_source, shaders.GL_VERTEX_SHADER))
-            glAttachShader(self.program, shaders.compileShader(self.fragment_shader_source, shaders.GL_FRAGMENT_SHADER))
-
-            #self.program = shaders.compileProgram(
-            #    shaders.compileShader(self.vertex_shader_source, shaders.GL_VERTEX_SHADER),
-            #    shaders.compileShader(self.fragment_shader_source, shaders.GL_FRAGMENT_SHADER)
-            #)
+            glAttachShader(self.program, shader_vert)
+            glAttachShader(self.program, shader_frag)
         except RuntimeError as error:
             print('(E) An error occured while compiling {} shader:\n {}\n... forwarding exception...'.format(self.name, error)),
             raise error
 
-        self.bindAttributes(attributes)
-
         glLinkProgram(self.program)
+
+        log = glGetShaderInfoLog(shader_frag)
+        print(log)
+
+        log = glGetShaderInfoLog(shader_vert)
+        print(log)
+
+        log = glGetProgramInfoLog(self.program)
+        print(log)
 
         # tell OpenGL to use this shader program for rendering
         glUseProgram(self.program)
+
+        for attrib in ["position", "normal", "colour", "tex_coord"]:
+            print(attrib + str(glGetAttribLocation(self.program, attrib)))
 
         # link all uniforms
         for uniform in self.uniforms:
             self.uniforms[uniform].link(self.program)
 
-    def bindAttributes(self, attributes):
-        # bind all shader attributes to the correct locations in the VAO
-        for name, location in attributes.items():
-            glBindAttribLocation(self.program, location, name)
-            print('Binding attribute {} to location {}'.format(name, location))
 
     def bind(self, model, M):
         '''
@@ -197,8 +187,7 @@ class BaseShaderProgram:
         P = model.scene.P
         V = model.scene.camera.V
 
-        # set the PVM matrix uniform
-        self.uniforms['PVM'].bind(np.matmul(P, np.matmul(V, M)))
+        self.uniforms["PVM"].bind(np.matmul(P, np.matmul(V, M)))
 
 
 class Shader(BaseShaderProgram):
@@ -219,16 +208,20 @@ class Shader(BaseShaderProgram):
 
         # in order to simplify extension of the class in the future, we start storing uniforms in a dictionary.
         self.uniforms = {
-            'PVM': Uniform('PVM'),   # project view model matrix
-            'VM': Uniform('VM'),     # view model matrix (necessary for light computations)
-            'VMiT': Uniform('VMiT'),  # inverse-transpose of the view model matrix (for normal transformation)
+            "M": Uniform("M"),
+            "V_t": Uniform("V_t"),
+            "PV": Uniform("PV"),
+            "VM": Uniform("VM"),
+            "M_it": Uniform("M_it"),
+            "VM_it": Uniform("VM_it"),
+            "PVM": Uniform("PVM"),
             'mode': Uniform('mode',0),  # rendering mode (only for illustration, in general you will want one shader program per mode)
             'alpha': Uniform('alpha', 0),
             'Ka': Uniform('Ka'),
             'Kd': Uniform('Kd'),
             'Ks': Uniform('Ks'),
             'Ns': Uniform('Ns'),
-            'light': Uniform('light', np.array([0.,0.,0.], 'f')),
+            'light_pos': Uniform('light_pos', np.array([0.,0.,0.], 'f')),
             'Ia': Uniform('Ia'),
             'Id': Uniform('Id'),
             'Is': Uniform('Is'),
@@ -245,31 +238,47 @@ class Shader(BaseShaderProgram):
         # tell OpenGL to use this shader program for rendering
         glUseProgram(self.program)
 
-        recalculate_matrices = False
+        recalculate_P = False
+        recalculate_V = False
+        recalculate_M = False
         
         # Scene's projection matrix
         _P = model.scene.P
-        if not np.any(self.P != _P):
+        if not np.all(self.P == _P):
             self.P = _P
-            recalculate_matrices = True
+            recalculate_P = True
         
         # Camera's view matrix
         _V = model.scene.camera.V
-        if recalculate_matrices or np.any(self.V != _V):
+        if not np.all(self.V == _V):
             self.V = _V
-            recalculate_matrices = True
+            recalculate_V = True
         
         # Model matrix
-        if recalculate_matrices or np.any(self.M != M):
+        if not np.all(self.M == M):
             self.M = M
-            recalculate_matrices = True
+            recalculate_M = True
         
-        if recalculate_matrices:
+        if recalculate_M:
+            self.uniforms["M"].bind_matrix(M)
+        
+        if recalculate_V:
+            self.uniforms["V_t"].bind_matrix(np.transpose(_V))
+        
+        if recalculate_P or recalculate_V:
+            self.uniforms["PV"].bind_matrix(np.matmul(_P, _V))
+
+        if recalculate_V or recalculate_M:
             VM = np.matmul(_V, M)
-            self.uniforms['VM'].bind(VM)
-            self.uniforms['PVM'].bind(np.matmul(_P, VM))
-            VMiT = np.linalg.inv(VM)[:3, :3].transpose()
-            self.uniforms['VMiT'].bind_matrix(VMiT)
+            self.uniforms["VM"].bind_matrix(VM)
+            M_it = np.linalg.inv(M)[:3, :3].transpose()
+            self.uniforms["M_it"].bind_matrix(M_it)
+            VM_it = np.linalg.inv(VM)[:3, :3].transpose()
+            self.uniforms["VM_it"].bind_matrix(VM_it)
+
+
+        if recalculate_P or recalculate_M or recalculate_V:
+            self.uniforms["PVM"].bind(np.matmul(_P, np.matmul(_V, M)))
 
         # bind the mode to the program
         self.uniforms['mode'].bind(model.scene.mode)
@@ -290,7 +299,7 @@ class Shader(BaseShaderProgram):
         self.bind_light_uniforms(model.scene.light, self.V)
 
     def bind_light_uniforms(self, light, V):
-        self.uniforms['light'].bind_vector(unhomog(np.dot(V, homog(light.position))))
+        self.uniforms['light_pos'].bind_vector(unhomog(np.dot(V, homog(light.position))))
         self.uniforms['Ia'].bind_vector(np.array(light.Ia, 'f'))
         self.uniforms['Id'].bind_vector(np.array(light.Id, 'f'))
         self.uniforms['Is'].bind_vector(np.array(light.Is, 'f'))

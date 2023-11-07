@@ -7,10 +7,13 @@ from queue import Queue
 
 from enum import Enum
 
+from blender import load_obj_file
 from camera import Camera
 from model import *
-from shaders import *
-from matutils import *
+from sphere_mesh import Sphere
+from shaders import FlatShader
+from matutils import (frustumMatrix, translationMatrix, scaleMatrix,
+                      poseMatrix, rotationMatrix)
 from light_source import LightSource
 
 
@@ -121,13 +124,14 @@ class Scene:
         self.pan_speed = 0.1
         self.mouse_mvt = None
 
-        self.light = LightSource(self, position=[5, 5, 5])
-
         self.mode = 0
 
         self.shaders = "flat"
 
         self.camera: Camera = Camera()
+        
+        self.has_shadows = []
+        self.has_reflection = []
 
 
     def add_model(self, model):
@@ -138,6 +142,23 @@ class Scene:
     def add_models(self, models):
         for model in models:
             self.add_model(model)
+    
+    
+    def add_models_from_obj(self, obj_file: str, pos=[0,0,0], scale=1,
+                            rotation=[0,0,0], shader=FlatShader(), 
+                            has_shadows=False, has_reflection=False, name=""):
+        meshes = load_obj_file(obj_file)
+        P = translationMatrix(pos)
+        S = scaleMatrix(scale)
+        R = rotationMatrix(*rotation)
+        M = np.matmul(P, np.matmul(S, R))
+        models = [DrawModelFromMesh(scene=self, M=M, mesh=mesh,
+                  shader=shader, name=name) for mesh in meshes]
+        if has_shadows:
+            self.has_shadows.extend(models)
+        if has_reflection:
+            self.has_reflection.extend(models)
+        self.add_models(models)
     
 
     def handle_key_event(self, key: int, keydown: bool):
@@ -247,6 +268,9 @@ class Scene:
                 if self.scroll_stop_timer == 0:
                     self.scroll_stop_timer = -1
                     self.pan_velocity[2] = 0
+            
+            # self.light.update(np.array(self.camera.rotate_around([*self.light.position], [1,0,0], 1), dtype="f"))
+            # self.show_light.set_position(self.light.position)
 
             self.draw()
 
@@ -254,5 +278,6 @@ class Scene:
                 self.camera.add_movement(self.pan_velocity)
                         
             clock.tick()
-            if pygame.time.get_ticks() % 10 == 0:
+            ticks = pygame.time.get_ticks()
+            if ticks % 10 == 0:
                 print(str(int(clock.get_fps())) + " FPS")

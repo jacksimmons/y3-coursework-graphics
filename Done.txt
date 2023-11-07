@@ -5,4 +5,5 @@ Worksheet 4
 Worksheet 5
 Worksheet 6/7 ?
 Worksheet 8
-Understand all shaders ?
+Create all shaders ?
+Why does table have working shadows without any shader???
