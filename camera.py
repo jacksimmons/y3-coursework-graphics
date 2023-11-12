@@ -4,7 +4,7 @@ from multiprocessing import Pipe
 import numpy as np
 
 from matutils import (translationMatrix, rotationMatrixX, rotationMatrixY,
-homog, unhomog, lookAt)
+rotationMatrixZ, homog, unhomog, lookAt)
 
 
 class Camera:
@@ -20,8 +20,6 @@ class Camera:
         self._eye = [0, 1, -5]
         self._up = [0, 1, 0]
         self._center = [0, 1, 0]
-        
-        self._angles = [0, 0]
                 
         self.update()
     
@@ -45,14 +43,11 @@ class Camera:
         return np.matmul(np.matmul(T_BA, self._R), T_AB)
     
     
-    def get_angles(self):
-        return self._angles
-    
-    
-    def set_angles(self, angles):
-        self._angles = angles
+    def add_rotation(self, angles):
         self._R = np.matmul(rotationMatrixX(angles[0]),
-                            rotationMatrixY(angles[1]))
+                            np.matmul(rotationMatrixY(angles[1]),
+                                      np.matmul(rotationMatrixZ(angles[2]),
+                                                self._R)))
     
     
     def normalise_vector(self, vector):
@@ -70,7 +65,7 @@ class Camera:
         center_point_dir = np.subtract(point, self._center)
         center_point_dir /= np.linalg.norm(center_point_dir)
         new_dir = np.cross(normal, center_point_dir)
-        return np.add(point, np.multiply(speed, new_dir))        
+        return np.add(point, np.multiply(speed, new_dir))
 
     
     def get_camera_x_axis(self, y_hat, z_hat):

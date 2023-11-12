@@ -10,7 +10,6 @@ from enum import Enum
 from blender import load_obj_file
 from camera import Camera
 from model import *
-from sphere_mesh import Sphere
 from shaders import FlatShader
 from matutils import (frustumMatrix, translationMatrix, scaleMatrix,
                       poseMatrix, rotationMatrix)
@@ -151,6 +150,11 @@ class Scene:
         P = translationMatrix(pos)
         S = scaleMatrix(scale)
         R = rotationMatrix(*rotation)
+        
+        print(P)
+        print(S)
+        print(R)
+        
         M = np.matmul(P, np.matmul(S, R))
         models = [DrawModelFromMesh(scene=self, M=M, mesh=mesh,
                   shader=shader, name=name) for mesh in meshes]
@@ -223,10 +227,10 @@ class Scene:
             if pygame.mouse.get_pressed()[2]:
                 if self.mouse_mvt is not None:
                     self.mouse_mvt = pygame.mouse.get_rel()
-                    angles = self.camera.get_angles()
-                    angles[1] -= 5*(float(self.mouse_mvt[0]) / self.window_size[0])
-                    angles[0] -= 5*(float(self.mouse_mvt[1]) / self.window_size[1])
-                    self.camera.set_angles(angles)
+                    angles = [0, 0, 0]
+                    angles[0] -= 5*(float(self.mouse_mvt[0]) / self.window_size[0])
+                    angles[1] -= 5*(float(self.mouse_mvt[1]) / self.window_size[1])
+                    self.camera.add_rotation(angles)
                 else:
                     self.mouse_mvt = pygame.mouse.get_rel()
             else:

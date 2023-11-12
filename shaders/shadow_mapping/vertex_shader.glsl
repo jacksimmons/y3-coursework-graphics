@@ -13,7 +13,7 @@ out vec2 fragment_tex_coord;
 //=== uniforms
 uniform mat4 PVM;
 uniform mat4 VM;
-uniform mat4 VM_it; // V * transpose(inverse(M))
+uniform mat3 VM_it; // V * transpose(inverse(M))
 uniform int mode;	// the rendering mode (better to code different shaders!)
 
 
