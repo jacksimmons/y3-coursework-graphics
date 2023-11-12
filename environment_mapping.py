@@ -1,6 +1,7 @@
 import time
 from threading import Thread
 
+import glm
 from OpenGL.GL.framebufferobjects import *
 
 from model import Model, DrawModelFromMesh
@@ -34,15 +35,15 @@ class EnvironmentShader(BaseShaderProgram):
         V = model.scene.camera.V
 
         # set the PVM matrix uniform
-        self.uniforms['PVM'].bind(np.matmul(P, np.matmul(V, M)))
+        self.uniforms['PVM'].bind_mat_4x4(glm.mul(P, glm.mul(V, M)))
 
         # set the PVM matrix uniform
-        self.uniforms['VM'].bind(np.matmul(V, M))
+        self.uniforms['VM'].bind_mat_4x4(glm.mul(V, M))
 
         # set the PVM matrix uniform
-        self.uniforms['VM_it'].bind(np.linalg.inv(np.matmul(V, M))[:3, :3].transpose())
+        self.uniforms['VM_it'].bind_mat_4x4(glm.inverseTranspose(glm.mul(V, M)))
 
-        self.uniforms['V_t'].bind(V.transpose()[:3, :3])
+        self.uniforms['V_t'].bind_mat_4x4(glm.transpose(V))
 
 
 class EnvironmentMappingTexture(CubeMap):
@@ -64,13 +65,16 @@ class EnvironmentMappingTexture(CubeMap):
         }
 
         t = 0.0
+        v = glm.vec3(0, 0, t)
+        T = glm.translate(v)
+        pi = glm.pi()
         self.views = {
-            GL_TEXTURE_CUBE_MAP_NEGATIVE_X: np.matmul(translationMatrix([0, 0, t]), rotationMatrixY(-np.pi/2.0)),
-            GL_TEXTURE_CUBE_MAP_POSITIVE_X: np.matmul(translationMatrix([0, 0, t]), rotationMatrixY(+np.pi/2.0)),
-            GL_TEXTURE_CUBE_MAP_NEGATIVE_Y: np.matmul(translationMatrix([0, 0, t]), rotationMatrixX(+np.pi/2.0)),
-            GL_TEXTURE_CUBE_MAP_POSITIVE_Y: np.matmul(translationMatrix([0, 0, t]), rotationMatrixX(-np.pi/2.0)),
-            GL_TEXTURE_CUBE_MAP_NEGATIVE_Z: np.matmul(translationMatrix([0, 0, t]), rotationMatrixY(-np.pi)),
-            GL_TEXTURE_CUBE_MAP_POSITIVE_Z: translationMatrix([0, 0, t]),
+            GL_TEXTURE_CUBE_MAP_NEGATIVE_X: glm.mul(T, glm.rotate(-pi/2.0, glm.vec3(0,1,0))),
+            GL_TEXTURE_CUBE_MAP_POSITIVE_X: glm.mul(T, glm.rotate(+pi/2.0, glm.vec3(0,1,0))),
+            GL_TEXTURE_CUBE_MAP_NEGATIVE_Y: glm.mul(T, glm.rotate(+pi/2.0, glm.vec3(1,0,0))),
+            GL_TEXTURE_CUBE_MAP_POSITIVE_Y: glm.mul(T, glm.rotate(-pi/2.0, glm.vec3(1,0,0))),
+            GL_TEXTURE_CUBE_MAP_NEGATIVE_Z: glm.mul(T, glm.rotate(-pi, glm.vec3(0,1,0))),
+            GL_TEXTURE_CUBE_MAP_POSITIVE_Z: T,
         }
 
         self.bind()
@@ -88,7 +92,7 @@ class EnvironmentMappingTexture(CubeMap):
 
         Pscene = scene.P
 
-        scene.P = frustumMatrix(-1.0, +1.0, -1.0, +1.0, 1.0, 20.0)
+        scene.P = glm.frustum( -1.0, +1.0, -1.0, +1.0, 1.0, 20.0 )
 
         glViewport(0, 0, self.width, self.height)
 

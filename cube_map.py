@@ -1,9 +1,9 @@
 import os
+import glm
 
 from texture import *
 from mesh import Mesh
 from model import DrawModelFromMesh
-from matutils import *
 from shaders import *
 
 
@@ -111,7 +111,9 @@ class FlattenCubeMap(DrawModelFromMesh):
             mesh.textures.append(cube)
 
         # Finishes initialising the mesh
-        DrawModelFromMesh.__init__(self, scene=scene, M=poseMatrix(position=[0,0,+1]), mesh=mesh, shader=FlattenedCubeShader(), visible=False)
+        super().__init__(scene=scene, M=glm.translate(glm.vec3(0,0,1)),
+                         mesh=mesh, shader=FlattenedCubeShader(),
+                         visible=False)
 
     def set(self, cube):
         '''

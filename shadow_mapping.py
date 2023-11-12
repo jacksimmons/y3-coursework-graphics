@@ -29,14 +29,10 @@ class ShadowMappingShader(Shader):
 
     def bind(self, model, M):
         Shader.bind(self, model, M)
-        self.uniforms['shadow_map'].bind(1)
-        #self.uniforms['old_map'].bind(2)
+        self.uniforms['shadow_map'].bind_int(1)
 
         glActiveTexture(GL_TEXTURE1)
         self.shadow_map.bind()
-
-        #glActiveTexture(GL_TEXTURE2)
-        #self.shadow_map.bind()
 
         glActiveTexture(GL_TEXTURE0)
 

@@ -1,12 +1,11 @@
 from OpenGL.GL import *
-from OpenGL.GLU import *
 
-import numpy as np
+import glm
 
 from mesh import Mesh
-from material import Material
-from matutils import poseMatrix, translationMatrix
+from texture import Texture
 from shaders import Shader
+from matutils import poseMatrix
 
 
 class Model:
@@ -116,7 +115,7 @@ class Model:
         glBindBuffer(GL_ARRAY_BUFFER, 0)
 
 
-    def draw(self, Mp=poseMatrix()):
+    def draw(self, Mp=glm.mat4()):
         """
         Draw using OpenGL functions.
         """
@@ -128,7 +127,7 @@ class Model:
 
         self.shader.bind(
             model=self,
-            M=np.matmul(Mp, self.M)
+            M=glm.mul(Mp, self.M)
         )
 
         # Bind vao
@@ -150,7 +149,7 @@ class Model:
     
 
     def set_position(self, position):
-        self.M = translationMatrix(position)
+        self.M = glm.translate(position)
 
 
     def __del__(self):

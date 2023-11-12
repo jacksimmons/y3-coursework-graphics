@@ -1,11 +1,7 @@
 from OpenGL.GL import *
 
 import pygame
-import numpy as np
-import math
-from queue import Queue
-
-from enum import Enum
+import glm
 
 from blender import load_obj_file
 from camera import Camera
@@ -116,9 +112,9 @@ class Scene:
         top = -1.0
         bottom = 1.0
 
-        self.P = frustumMatrix(left, right, top, bottom, near, far)
+        self.P = glm.frustum(left, right, bottom, top, near, far)
 
-        self.pan_velocity = [0, 0, 0]
+        self.pan_velocity = glm.vec3()
         self.scroll_stop_timer = -1
         self.pan_speed = 0.1
         self.mouse_mvt = None
@@ -143,19 +139,21 @@ class Scene:
             self.add_model(model)
     
     
-    def add_models_from_obj(self, obj_file: str, pos=[0,0,0], scale=1,
-                            rotation=[0,0,0], shader=FlatShader(), 
-                            has_shadows=False, has_reflection=False, name=""):
+    def add_models_from_obj(self, obj_file: str, pos=glm.vec3(),
+                            scale=glm.vec3(1,1,1), rotation=glm.vec3(0,0,0),
+                            shader=FlatShader(), has_shadows=False,
+                            has_reflection=False, name=""):
         meshes = load_obj_file(obj_file)
-        P = translationMatrix(pos)
-        S = scaleMatrix(scale)
-        R = rotationMatrix(*rotation)
+        
+        P = glm.translate(pos)
+        S = glm.scale(scale)
+        R = glm.mat4()
         
         print(P)
         print(S)
         print(R)
         
-        M = np.matmul(P, np.matmul(S, R))
+        M = glm.mul(P, glm.mul(S, R))
         models = [DrawModelFromMesh(scene=self, M=M, mesh=mesh,
                   shader=shader, name=name) for mesh in meshes]
         if has_shadows:
@@ -189,17 +187,17 @@ class Scene:
                 self.settings.next_shading_mode()
             
         if key == pygame.K_a:
-            self.pan_velocity[0] += press_direction * self.pan_speed
+            self.pan_velocity.x += press_direction * self.pan_speed
         elif key == pygame.K_d:
-            self.pan_velocity[0] -= press_direction * self.pan_speed
+            self.pan_velocity.x -= press_direction * self.pan_speed
         elif key == pygame.K_w:
-            self.pan_velocity[1] += press_direction * self.pan_speed
+            self.pan_velocity.y += press_direction * self.pan_speed
         elif key == pygame.K_s:
-            self.pan_velocity[1] -= press_direction * self.pan_speed
+            self.pan_velocity.y -= press_direction * self.pan_speed
         elif key == pygame.K_q:
-            self.pan_velocity[2] += press_direction * self.pan_speed
+            self.pan_velocity.z += press_direction * self.pan_speed
         elif key == pygame.K_e:
-            self.pan_velocity[2] -= press_direction * self.pan_speed
+            self.pan_velocity.z -= press_direction * self.pan_speed
 
 
     def handle_mouse_scroll_event(self, button):
@@ -227,9 +225,9 @@ class Scene:
             if pygame.mouse.get_pressed()[2]:
                 if self.mouse_mvt is not None:
                     self.mouse_mvt = pygame.mouse.get_rel()
-                    angles = [0, 0, 0]
-                    angles[0] -= 5*(float(self.mouse_mvt[0]) / self.window_size[0])
-                    angles[1] -= 5*(float(self.mouse_mvt[1]) / self.window_size[1])
+                    angles = glm.vec3()
+                    angles.x -= 5*(float(self.mouse_mvt[0]) / self.window_size[0])
+                    angles.y -= 5*(float(self.mouse_mvt[1]) / self.window_size[1])
                     self.camera.add_rotation(angles)
                 else:
                     self.mouse_mvt = pygame.mouse.get_rel()
@@ -267,21 +265,21 @@ class Scene:
             for event in pygame.event.get():
                 self.handle_event(event)
             
-            if self.scroll_stop_timer != -1:
-                self.scroll_stop_timer -= 1
-                if self.scroll_stop_timer == 0:
-                    self.scroll_stop_timer = -1
-                    self.pan_velocity[2] = 0
+            # if self.scroll_stop_timer != -1:
+            #     self.scroll_stop_timer -= 1
+            #     if self.scroll_stop_timer == 0:
+            #         self.scroll_stop_timer = -1
+            #         self.pan_velocity.y = 0
             
             # self.light.update(np.array(self.camera.rotate_around([*self.light.position], [1,0,0], 1), dtype="f"))
             # self.show_light.set_position(self.light.position)
 
             self.draw()
 
-            if np.any(self.pan_velocity):
+            if not glm.equal(self.pan_velocity, glm.vec3(0,0,0)):
                 self.camera.add_movement(self.pan_velocity)
                         
             clock.tick()
             ticks = pygame.time.get_ticks()
-            if ticks % 10 == 0:
+            if ticks % 10 == -1:
                 print(str(int(clock.get_fps())) + " FPS")

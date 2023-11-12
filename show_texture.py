@@ -1,39 +1,9 @@
-from model import *
+from model import DrawModelFromMesh
+from mesh import Mesh
+from shaders import BaseShaderProgram
 
-def normalize(v):
-    '''
-    Normalise a vector
-    :param v: a vector
-    :return: normalised vector
-    '''
-    return v / np.linalg.norm(v)
-
-
-def lookAt(eye, center, up=np.array([0, 1, 0])):
-    '''
-    Calculate the view matrix for a camera at position eye, looking towards the center
-    :param eye: The position of the camera
-    :param center: The position the camera is looking at
-    :param up: A vector setting where up is. Default is (0,1,0), no reason to change it.
-    :return: The corresponding view matrix
-    '''
-
-    f = normalize(center - eye)
-    u = normalize(up)
-
-    # Note: the normalization is missing in the official glu manpage: /: /: /
-    s = normalize(np.cross(f, u))
-    u = np.cross(s, f)
-
-    return np.matmul(
-        np.array([
-            [s[0], s[1], s[2], 0],
-            [u[0], u[1], u[2], 0],
-            [-f[0], -f[1], -f[2], 0],
-            [0, 0, 0, 1]
-        ]),
-        translationMatrix(-eye)
-    )
+import numpy as np
+import glm
 
 
 class ShowTextureShader(BaseShaderProgram):
@@ -87,4 +57,5 @@ class ShowTexture(DrawModelFromMesh):
             mesh.textures.append(texture)
 
         # Finishes initialising the mesh
-        DrawModelFromMesh.__init__(self, scene=scene, M=poseMatrix(position=[0, 0, 1]), mesh=mesh, shader=ShowTextureShader(), visible=False)
+        super().__init__(scene=scene, M=glm.translate(glm.vec3(0,0,1)),
+                         mesh=mesh, shader=ShowTextureShader(), visible=False)

@@ -1,4 +1,6 @@
 import numpy as np
+import glm
+
 
 def scaleMatrix(scale):
     if np.isscalar(scale):
@@ -101,11 +103,16 @@ def frustumMatrix(l,r,t,b,n,f):
 
 
 # Homogeneous coordinates helpers
+# def homog(v):
+#     return np.hstack([v,1])
 def homog(v):
-    return np.hstack([v,1])
+    return glm.vec4(v, 1)
 
-def unhomog(vh):
-    return vh[:-1]/vh[-1]
+# def unhomog(vh):
+#     return vh[:-1]/vh[-1]
+def unhomog(v):
+    return glm.vec3()
+
 
 def matmul(L):
     R = L[0]

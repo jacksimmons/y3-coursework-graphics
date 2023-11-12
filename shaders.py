@@ -1,8 +1,6 @@
 # imports all openGL functions
 from OpenGL.GL import *
-from OpenGL.GL import shaders
-from matutils import *
-# we will use numpy to store data in arrays
+import glm
 import numpy as np
 
 
@@ -20,6 +18,7 @@ class Uniform:
         self.value = value
         self.location = -1
 
+
     def link(self, program):
         '''
         This function needs to be called after compiling the GLSL program to fetch the location of the uniform
@@ -29,67 +28,81 @@ class Uniform:
         self.location = glGetUniformLocation(program=program, name=self.name)
         if self.location == -1:
             print('(E) Warning, no uniform {}'.format(self.name))
-
-    def bind_matrix(self, M=None, number=1, transpose=True):
-        '''
-        Call this before rendering to bind the Python matrix to the GLSL uniform mat4.
-        You will need different methods for different types of uniform, but for now this will
-        do for the PVM matrix
-        :param number: the number of matrices sent, leave that to 1 for now
-        :param transpose: Whether the matrix should be transposed
-        '''
-        if M is not None:
-            self.value = M
-        if self.value.shape[0] == 4 and self.value.shape[1] == 4:
-            glUniformMatrix4fv(self.location, number, transpose, self.value)
-        elif self.value.shape[0] == 3 and self.value.shape[1] == 3:
-            glUniformMatrix3fv(self.location, number, transpose, self.value)
-        else:
-            print('(E) Error: Trying to bind as uniform a matrix of shape {}'.format(self.value.shape))
-
-    def bind(self,value):
+    
+    
+    def bind_int(self, value):
         if value is not None:
             self.value = value
-
-        if isinstance(self.value, int):
-            self.bind_int()
-        elif isinstance(self.value, float):
-            self.bind_float()
-        elif isinstance(self.value, np.ndarray):
-            if self.value.ndim==1:
-                self.bind_vector()
-            elif self.value.ndim==2:
-                self.bind_matrix()
-        else:
-            print('Wrong value bound: {}'.format(type(self.value)))
-
-    def bind_int(self, value=None):
+            
+        try:
+            glUniform1i(self.location, self.value)
+        except:
+            print(f"Invalid int: {type(value)}")
+    
+    
+    def bind_float(self, value):
         if value is not None:
             self.value = value
-        glUniform1i(self.location, self.value)
-
-    def bind_float(self, value=None):
+            
+        try:
+            glUniform1f(self.location, self.value)
+        except:
+            print(f"Invalid float: {type(value)}")
+    
+    
+    def bind_vec3(self, value):
         if value is not None:
             self.value = value
-        glUniform1f(self.location, self.value)
-
-    def bind_vector(self, value=None):
+        
+        data = np.array(self.value, "f")
+        try:
+            glUniform3fv(self.location, 1, data)
+        except Exception as e:
+            print(f"Invalid vec3.\nType: {type(value)}")
+            input(f"Data: {data}")
+            print(e)
+    
+    
+    def bind_vec4(self, value):
         if value is not None:
             self.value = value
-        if value.shape[0] == 2:
-            glUniform2fv(self.location, 1, value)
-        elif value.shape[0] == 3:
-            glUniform3fv(self.location, 1, value)
-        elif value.shape[0] == 4:
-            glUniform4fv(self.location, 1, value)
-        else:
-            print('(E) Error in Uniform.bind_vector(): Vector should be of dimension 2,3 or 4, found {}'.format(value.shape[0]))
-
-    def set(self, value):
-        '''
-        function to set the uniform value (could also access it directly, of course)
-        '''
-        self.value = value
+        
+        data = np.array(self.value, "f")
+        try:
+            glUniform4fv(self.location, 1, data)
+        except Exception as e:
+            print(f"Invalid vec4.\nType: {type(value)}")
+            input(f"Data: {data}")
+            print(e)
+    
+    
+    def bind_mat3x3(self, value):
+        if value is not None:
+            self.value = value
+        
+        data = np.array(self.value, "f")
+        try:
+            glUniformMatrix3fv(self.location, 1, True, data)
+        except Exception as e:
+            print(f"Invalid 3x3 matrix.\nType: {type(value)}")
+            input(f"Data: {data}")
+            print(e)
+    
+    
+    def bind_mat4x4(self, value):
+        if value is not None:
+            self.value = value
+        
+        print(self.location)
+        
+        data = np.array(self.value, "f")
+        try:
+            print(data)
+            glUniformMatrix4fv(self.location, 1, True, data)
+        except Exception as e:
+            print(f"Invalid 4x4 matrix.\nType: {type(value)}")
+            input(f"Data: {data}")
+            print(e)
 
 
 class BaseShaderProgram:
@@ -187,7 +200,7 @@ class BaseShaderProgram:
         P = model.scene.P
         V = model.scene.camera.V
 
-        self.uniforms["PVM"].bind(np.matmul(P, np.matmul(V, M)))
+        self.uniforms["PVM"].bind_mat4x4(glm.mul(P, glm.mul(V, M)))
 
 
 class Shader(BaseShaderProgram):
@@ -215,13 +228,13 @@ class Shader(BaseShaderProgram):
             "M_it": Uniform("M_it"),
             "VM_it": Uniform("VM_it"),
             "PVM": Uniform("PVM"),
-            'mode': Uniform('mode',0),  # rendering mode (only for illustration, in general you will want one shader program per mode)
+            'mode': Uniform('mode', 0),  # rendering mode (only for illustration, in general you will want one shader program per mode)
             'alpha': Uniform('alpha', 0),
             'Ka': Uniform('Ka'),
             'Kd': Uniform('Kd'),
             'Ks': Uniform('Ks'),
             'Ns': Uniform('Ns'),
-            'light_pos': Uniform('light_pos', np.array([0.,0.,0.], 'f')),
+            'light_pos': Uniform('light_pos', glm.vec3(0.,0.,0.)),
             'Ia': Uniform('Ia'),
             'Id': Uniform('Id'),
             'Is': Uniform('Is'),
@@ -244,53 +257,57 @@ class Shader(BaseShaderProgram):
         
         # Scene's projection matrix
         _P = model.scene.P
-        if not np.all(self.P == _P):
+        if self.P is None or not glm.equal(self.P, _P):
             self.P = _P
             recalculate_P = True
         
         # Camera's view matrix
         _V = model.scene.camera.V
-        if not np.all(self.V == _V):
+        if self.V is None or not glm.equal(self.V, _V):
             self.V = _V
             recalculate_V = True
         
         # Model matrix
-        if not np.all(self.M == M):
+        if self.M is None or not glm.equal(self.M, M):
             self.M = M
             recalculate_M = True
         
         if recalculate_M:
-            self.uniforms["M"].bind_matrix(M)
+            self.uniforms["M"].bind_mat4x4(M)
         
         if recalculate_V:
-            self.uniforms["V_t"].bind_matrix(np.transpose(_V))
+            self.uniforms["V_t"].bind_mat4x4(glm.transpose(_V))
         
         if recalculate_P or recalculate_V:
-            self.uniforms["PV"].bind_matrix(np.matmul(_P, _V))
+            self.uniforms["PV"].bind_mat4x4(glm.mul(_P, _V))
 
         if recalculate_V or recalculate_M:
-            VM = np.matmul(_V, M)
-            self.uniforms["VM"].bind_matrix(VM)
-            M_it = np.linalg.inv(M)[:3, :3].transpose()
-            self.uniforms["M_it"].bind_matrix(M_it)
-            VM_it = np.linalg.inv(VM)[:3, :3].transpose()
-            self.uniforms["VM_it"].bind_matrix(VM_it)
+            VM = glm.mul(_V, M)
+            self.uniforms["VM"].bind_mat4x4(VM)
+            
+            M_it = glm.inverseTranspose(M)
+            #M_it = np.linalg.inv(M)[:3, :3].transpose()
+            self.uniforms["M_it"].bind_mat4x4(M_it)
+            
+            VM_it = glm.inverseTranspose(VM)
+            #np.linalg.inv(VM)[:3, :3].transpose()
+            self.uniforms["VM_it"].bind_mat4x4(VM_it)
 
 
         if recalculate_P or recalculate_M or recalculate_V:
-            self.uniforms["PVM"].bind(np.matmul(_P, np.matmul(_V, M)))
+            self.uniforms["PVM"].bind_mat4x4(glm.mul(_P, glm.mul(_V, M)))
 
         # bind the mode to the program
-        self.uniforms['mode'].bind(model.scene.mode)
+        self.uniforms['mode'].bind_int(model.scene.mode)
 
-        self.uniforms['alpha'].bind(model.mesh.material.alpha)
+        self.uniforms['alpha'].bind_float(model.mesh.material.alpha)
 
         if len(model.mesh.textures) > 0:
             # bind the texture(s)
-            self.uniforms['textureObject'].bind(0)
-            self.uniforms['has_texture'].bind(1)
+            self.uniforms['textureObject'].bind_int(0)
+            self.uniforms['has_texture'].bind_int(1)
         else:
-            self.uniforms['has_texture'].bind(0)
+            self.uniforms['has_texture'].bind_int(0)
 
         # bind material properties
         self.bind_material_uniforms(model.mesh.material)
@@ -299,15 +316,16 @@ class Shader(BaseShaderProgram):
         self.bind_light_uniforms(model.scene.light, self.V)
 
     def bind_light_uniforms(self, light, V):
-        self.uniforms['light_pos'].bind_vector(unhomog(np.dot(V, homog(light.position))))
-        self.uniforms['Ia'].bind_vector(np.array(light.Ia, 'f'))
-        self.uniforms['Id'].bind_vector(np.array(light.Id, 'f'))
-        self.uniforms['Is'].bind_vector(np.array(light.Is, 'f'))
+        light_pos_homog = glm.vec4(light.position, 1)
+        self.uniforms['light_pos'].bind_vec3(glm.mul(V, light_pos_homog).xyz)
+        self.uniforms['Ia'].bind_vec3(light.Ia)
+        self.uniforms['Id'].bind_vec3(light.Id)
+        self.uniforms['Is'].bind_vec3(light.Is)
 
     def bind_material_uniforms(self, material):
-        self.uniforms['Ka'].bind_vector(np.array(material.Ka, 'f'))
-        self.uniforms['Kd'].bind_vector(np.array(material.Kd, 'f'))
-        self.uniforms['Ks'].bind_vector(np.array(material.Ks, 'f'))
+        self.uniforms['Ka'].bind_vec3(material.Ka)
+        self.uniforms['Kd'].bind_vec3(material.Kd)
+        self.uniforms['Ks'].bind_vec3(material.Ks)
         self.uniforms['Ns'].bind_float(material.Ns)
 
     def add_uniform(self, name):
