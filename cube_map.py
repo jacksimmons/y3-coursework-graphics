@@ -5,6 +5,9 @@ from texture import *
 from mesh import Mesh
 from model import DrawModelFromMesh
 from shaders import *
+from log import Logger
+
+logger = Logger(False, True, True)
 
 
 class FlattenedCubeShader(BaseShaderProgram):
@@ -188,8 +191,8 @@ class CubeMap(Texture):
             self.files = files
 
         for (key, value) in self.files.items():
-            print('Loading texture: texture/{}/{}'.format(name, value))            
-            img = ImageWrapper('{}/{}'.format(name, value))
+            logger.info(f"Loading texture: texture/{name}/{value}")            
+            img = ImageWrapper(f"{name}/{value}")
 
             # convert the python image object to a plain byte array for passing to OpenGL
             glTexImage2D(key, 0, self.format, img.width(), img.height(), 0, self.format, self.type, img.data(self.format))

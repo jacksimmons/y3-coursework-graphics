@@ -13,7 +13,7 @@ out vec2 fragment_tex_coord;
 //=== uniforms
 uniform mat4 PVM;
 uniform mat4 VM;
-uniform mat3 VM_it; // V * transpose(inverse(M))
+uniform mat4 VM_it; // V * transpose(inverse(M))
 uniform int mode;	// the rendering mode (better to code different shaders!)
 
 
@@ -27,7 +27,7 @@ void main() {
     // those will be interpolate before being sent to the
     // fragment shader.
     fragment_pos = vec3(VM * vec4(position,1.0f));
-    fragment_normal = normalize(VM_it * normal);
+    fragment_normal = vec3(normalize(VM_it * vec4(normal, 1.0f)));
 
     // 3. forward the texture coordinates.
     fragment_tex_coord = texCoord;

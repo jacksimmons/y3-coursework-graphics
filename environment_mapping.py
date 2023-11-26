@@ -2,48 +2,13 @@ import time
 from threading import Thread
 
 import glm
+from OpenGL.GL import *
 from OpenGL.GL.framebufferobjects import *
 
 from model import Model, DrawModelFromMesh
 from mesh import *
 from cube_map import CubeMap
-from shaders import *
 from framebuffer import Framebuffer
-
-
-class EnvironmentShader(BaseShaderProgram):
-    def __init__(self, name='environment', map=None):
-        BaseShaderProgram.__init__(self, name=name)
-        self.add_uniform('sampler_cube')
-        self.add_uniform('VM')
-        self.add_uniform('VMiT')
-        self.add_uniform('VT')
-
-        self.map = map
-
-    def bind(self, model, M):
-        if self.map is not None:
-            #self.map.update(model.scene)
-            unit = len(model.mesh.textures)
-            glActiveTexture(GL_TEXTURE0)
-            self.map.bind()
-            self.uniforms['sampler_cube'].bind(0)
-
-        glUseProgram(self.program)
-
-        P = model.scene.P  # get projection matrix from the scene
-        V = model.scene.camera.V
-
-        # set the PVM matrix uniform
-        self.uniforms['PVM'].bind_mat_4x4(glm.mul(P, glm.mul(V, M)))
-
-        # set the PVM matrix uniform
-        self.uniforms['VM'].bind_mat_4x4(glm.mul(V, M))
-
-        # set the PVM matrix uniform
-        self.uniforms['VM_it'].bind_mat_4x4(glm.inverseTranspose(glm.mul(V, M)))
-
-        self.uniforms['V_t'].bind_mat_4x4(glm.transpose(V))
 
 
 class EnvironmentMappingTexture(CubeMap):

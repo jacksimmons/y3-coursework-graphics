@@ -4,7 +4,7 @@ import glm
 
 from mesh import Mesh
 from texture import Texture
-from shaders import Shader
+from shaders import Shader, EnvironmentShader
 from matutils import poseMatrix
 
 
@@ -60,9 +60,6 @@ class Model:
 
         # Associate bound buffer to corresponding input location in shader
         # Every vertex shader instance gets one row of the array, so can be processed in parallel
-        print(name)
-        print(data.shape[1])
-        print("At index " + str(self.attributes[name]))
         glVertexAttribPointer(index=self.attributes[name], size=data.shape[1], type=GL_FLOAT,
             normalized=False, stride=0, pointer=None)
 
@@ -154,10 +151,9 @@ class Model:
 
     def __del__(self):
         """Destructor."""
-        for vbo in self.vbos.items():
-            glDeleteBuffers(1, vbo)
-        
-        glDeleteVertexArrays(self.vao)
+        vbo_ids = list(self.vbos.values())
+        glDeleteBuffers(len(vbo_ids), vbo_ids)        
+        glDeleteVertexArrays(1, self.vao.tolist())
 
 
 class DrawModelFromMesh(Model):
@@ -183,6 +179,12 @@ class DrawModelFromMesh(Model):
             raise
 
         self.bind()
+        
+        if mesh.material is not None:
+            if mesh.material.illumination >= 3:
+                shader = EnvironmentShader()
+            else:
+                shader = Shader("flat")
 
         if shader is not None:
             self.bind_shader(shader)

@@ -133,7 +133,7 @@ class ShadowMap(Texture):
         if self.light is not None:
             #self.P = frustumMatrix(-1.0, +1.0, -1.0, +1.0, 1.0, 20.0)
             self.P = scene.P
-            self.V = lookAt(np.array(self.light.position), np.array(target))
+            self.V = glm.lookAt(self.light.position, target, glm.vec3(0,1,0))
             scene.camera.V = self.V
 
             # update the viewport for the image size

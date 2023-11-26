@@ -2,6 +2,7 @@ from material import Material
 import numpy as np
 
 from texture import Texture
+import glm
 
 
 class Mesh:
@@ -17,6 +18,7 @@ class Mesh:
         :param normals: [optional] An array of normal vectors, calculated from the faces if not provided.
         :param material: [optional] An object containing the material information for this object
         '''
+        
         self.name = 'Unknown'
         self.vertices = vertices
         self.faces = faces
@@ -48,6 +50,19 @@ class Mesh:
         if material.texture is not None:
             self.textures.append(Texture(material.texture))
             #self.textures.append(Texture('lena.bmp'))
+    
+    
+    def safe_normalise(self, arr):
+        norm = np.linalg.norm(arr, axis=1, keepdims=True)
+        if len(norm) == 1:
+            if norm == 0:
+                return arr
+        else:
+            for n in norm:
+                if n == 0:
+                    return arr
+        
+        return arr / norm
 
 
     def calculate_normals(self):
@@ -75,6 +90,7 @@ class Mesh:
             if self.textureCoords is not None:
                 txa = self.textureCoords[self.faces[f, 1], :] - self.textureCoords[self.faces[f, 0], :]
                 txb = self.textureCoords[self.faces[f, 2], :] - self.textureCoords[self.faces[f, 2], :]
+                
                 face_tangent = txb[0]*a - txa[0]*b
                 face_binormal = -txb[1]*a + txa[1]*b
 
@@ -85,11 +101,12 @@ class Mesh:
                     self.tangents[self.faces[f, j], :] += face_tangent
                     self.binormals[self.faces[f, j], :] += face_binormal
 
-        # finally we need to normalize the vectors
-        self.normals /= np.linalg.norm(self.normals, axis=1, keepdims=True)
+        # Normalise the arrays (if they have a length)
+        self.safe_normalise(self.normals)
+            
         if self.textureCoords is not None:
-            self.tangents /= np.linalg.norm(self.tangents, axis=1, keepdims=True)
-            self.binormals /= np.linalg.norm(self.binormals, axis=1, keepdims=True)
+            self.safe_normalise(self.tangents)
+            self.safe_normalise(self.binormals)
 
 
 class CubeMesh(Mesh):

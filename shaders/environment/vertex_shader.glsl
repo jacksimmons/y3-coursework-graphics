@@ -27,7 +27,6 @@ void main(void)
     // TODO WS4
     position_view_space = vec3(VM * vec4(position, 1.0f) );
     normal_view_space = normalize(VM_it * vec4(normal, 1.0f)).xyz;
-	//fragment_tex_coord = normalize(-VMiT*position);
-
-	//fragment_tex_coord = reflect(-normalize(position), normal);
+	fragment_tex_coord = normalize(-VM_it * vec4(position, 1.0f)).xyz;
+	fragment_tex_coord = reflect(-normalize(position), normal);
 }

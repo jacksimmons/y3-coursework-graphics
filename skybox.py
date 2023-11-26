@@ -3,6 +3,7 @@ import glm
 from OpenGL.GL import glDepthMask, GL_FALSE, GL_TRUE
 from model import DrawModelFromMesh
 from mesh import CubeMesh
+from cube_map import CubeMap
 from shaders import BaseShaderProgram
 
 
@@ -20,9 +21,9 @@ class SkyBoxShader(BaseShaderProgram):
 
 
 class SkyBox(DrawModelFromMesh):
-    def __init__(self, scene):
-        super().__init__(scene=scene, M=glm.scale(glm.vec3(100,100,100)),
-                         mesh=CubeMesh(texture=None, inside=True),
+    def __init__(self, folder: str, file_format: str, scene):
+        super().__init__(scene=scene, M=glm.scale(glm.vec3(10000)),
+                         mesh=CubeMesh(texture=CubeMap(name=folder, file_format=file_format), inside=True),
                          shader=SkyBoxShader(), name='skybox')
 
     def draw(self):

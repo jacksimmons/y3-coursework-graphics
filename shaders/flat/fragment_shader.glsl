@@ -13,14 +13,17 @@ uniform int mode;	// the rendering mode (better to code different shaders!)
 
 uniform int has_texture;
 
-// texture samplers
+// Texture Sampler
 uniform sampler2D textureObject; // first texture object
 
-// material uniforms
+// Material properties
 uniform vec3 Ka;
 uniform vec3 Kd;
 uniform vec3 Ks;
 uniform float Ns;
+
+// Texture scaling in blender
+uniform vec3 tex_scale;
 
 // light source
 uniform vec3 light_pos;
@@ -32,7 +35,8 @@ uniform vec3 Is;
 void main() {    
     vec4 texval = vec4(1.0f);
     if(has_texture == 1)
-        texval = texture2D(textureObject, fragment_tex_coord);
+        texval = texture2D(textureObject, fragment_tex_coord * tex_scale.xy);
+    
     vec3 normal = normalize(fragment_normal);
     vec3 light_dir = normalize(light_pos - fragment_pos);
     vec3 camera_dir = -normalize(fragment_pos);
@@ -55,7 +59,12 @@ void main() {
     // the light source. It is then reflected over the normal.
     vec3 reflect_dir = reflect(-light_dir, normal);
     float angle_reflection_camera = max(dot(camera_dir, reflect_dir), 0.0f);
+    
     vec4 specular = vec4(Is * Ks * pow(angle_reflection_camera, Ns), 1.0f);
+    // Overwrite specular component if exponent is 0
+    if (Ns == 0) {
+        specular = vec4(0.0f);
+    }
 
     final_color = (ambient + diffuse) * texval + specular;
 }

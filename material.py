@@ -1,3 +1,4 @@
+from enum import Enum
 import glm
 
 
@@ -15,8 +16,12 @@ class Material:
         # Specular exponent
         self.Ns = Ns
         
+        self.illumination = 0
         self.texture = texture
+        self.tex_scale = glm.vec3(1, 1, 1)
+        
         self.alpha = 1.0
+            
     
 
 class MaterialLibrary:
