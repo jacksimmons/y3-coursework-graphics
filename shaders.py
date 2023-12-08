@@ -6,7 +6,7 @@ import numpy as np
 from log import Logger
 
 
-logger = Logger(True, False, True)
+logger = Logger(False, False, True)
 
 
 class Uniform:
@@ -35,7 +35,8 @@ class Uniform:
             logger.warning(f"No uniform {self.name}")
     
     
-    def bind_int(self, value):
+    def bind_int(self, value: int):
+        """Binds an integer uniform."""
         if value is not None:
             self.value = value
             
@@ -46,7 +47,8 @@ class Uniform:
             raise
     
     
-    def bind_float(self, value):
+    def bind_float(self, value: float):
+        """Binds a float uniform."""
         if value is not None:
             self.value = value
             
@@ -57,7 +59,8 @@ class Uniform:
             raise
     
     
-    def bind_vec3(self, value):
+    def bind_vec3(self, value: glm.vec3):
+        """Binds a 3D vector uniform."""
         if value is not None:
             self.value = value
         
@@ -69,7 +72,8 @@ class Uniform:
             raise
     
     
-    def bind_vec4(self, value):
+    def bind_vec4(self, value: glm.vec4):
+        """Binds a 4D vector uniform."""
         if value is not None:
             self.value = value
         
@@ -81,25 +85,27 @@ class Uniform:
             raise
     
     
-    def bind_mat3x3(self, value):
+    def bind_mat3x3(self, value: glm.mat3x3, transpose=True):
+        """Binds a 3x3 matrix uniform."""
         if value is not None:
             self.value = value
         
         data = np.array(self.value, "f")
         try:
-            glUniformMatrix3fv(self.location, 1, True, data)
+            glUniformMatrix3fv(self.location, 1, transpose, data)
         except:
             logger.type_error("mat3x3", data)
             raise
     
     
-    def bind_mat4x4(self, value):
+    def bind_mat4x4(self, value, transpose=True):
+        """Binds a 4x4 matrix uniform."""
         if value is not None:
             self.value = value
                 
         data = np.array(self.value, "f")
         try:
-            glUniformMatrix4fv(self.location, 1, True, data)
+            glUniformMatrix4fv(self.location, 1, transpose, data)
         except:
             logger.type_error("mat4x4", data)
             raise
@@ -123,8 +129,11 @@ class BaseShaderProgram:
         fragment_shader_file = None
 
         if name is not None:
-            vertex_shader_file = 'shaders/{}/vertex_shader.glsl'.format(name)
-            fragment_shader_file = 'shaders/{}/fragment_shader.glsl'.format(name)
+            fname = name
+            if fname == "blinn":
+                fname = "phong"
+            vertex_shader_file = 'shaders/{}/vertex_shader.glsl'.format(fname)
+            fragment_shader_file = 'shaders/{}/fragment_shader.glsl'.format(fname)
             
             logger.info(vertex_shader_file)
             logger.info(fragment_shader_file)
@@ -134,7 +143,6 @@ class BaseShaderProgram:
             #print('Load vertex shader from file: {}'.format(vertex_shader))
             with open(vertex_shader_file, 'r') as file:
                 self.vertex_shader_source = file.read()
-            # print(self.vertex_shader_source)
 
         # load the fragment shader GLSL code
         if fragment_shader_file is not None:
@@ -172,6 +180,7 @@ class BaseShaderProgram:
 
         glLinkProgram(self.program)
 
+        # Shader info logs
         log = glGetShaderInfoLog(shader_frag)
         logger.info(log)
 
@@ -183,10 +192,6 @@ class BaseShaderProgram:
 
         # tell OpenGL to use this shader program for rendering
         glUseProgram(self.program)
-
-        # Attrib position debugging
-        # for attrib in ["position", "normal", "colour", "tex_coord"]:
-        #     print(attrib + str(glGetAttribLocation(self.program, attrib)))
 
         # link all uniforms
         for uniform in self.uniforms:
@@ -213,9 +218,6 @@ class Shader(BaseShaderProgram):
         :param vertex_shader: the name of the file containing the vertex shader GLSL code
         :param fragment_shader: the name of the file containing the fragment shader GLSL code
         '''
-
-        if name not in ["flat", "phong", "gouraud", "texture"]:
-            logger.error("Invalid shader name.")
 
         super().__init__(name=name)
         
@@ -246,7 +248,7 @@ class Shader(BaseShaderProgram):
             'Id': Uniform('Id'),
             'Is': Uniform('Is'),
             'has_texture': Uniform('has_texture'),
-            'textureObject': Uniform('textureObject')
+            'texture_object': Uniform('texture_object')
             #'textureObject2': Uniform('textureObject2'),
         }
     
@@ -279,6 +281,11 @@ class Shader(BaseShaderProgram):
             self.M = M
             recalculate_M = True
         
+        # Only recalculates matrices if necessary - allows faster
+        # frame times when camera is not moving, and environment and shadow
+        # maps are disabled.
+        
+        # Binds the following calculations to shader uniforms.
         if recalculate_M:
             self.uniforms["M"].bind_mat4x4(M)
         
@@ -293,11 +300,9 @@ class Shader(BaseShaderProgram):
             self.uniforms["VM"].bind_mat4x4(VM)
             
             M_it = glm.inverseTranspose(M)
-            #M_it = np.linalg.inv(M)[:3, :3].transpose()
             self.uniforms["M_it"].bind_mat4x4(M_it)
             
             VM_it = glm.inverseTranspose(VM)
-            #np.linalg.inv(VM)[:3, :3].transpose()
             self.uniforms["VM_it"].bind_mat4x4(VM_it)
 
 
@@ -307,11 +312,10 @@ class Shader(BaseShaderProgram):
         # bind the mode to the program
         self.uniforms['mode'].bind_int(model.scene.mode)
 
-        self.uniforms['alpha'].bind_float(model.mesh.material.alpha)
+        self.uniforms['alpha'].bind_float(model.mesh.material.d)
 
         if len(model.mesh.textures) > 0:
-            # bind the texture(s)
-            self.uniforms['textureObject'].bind_int(0)
+            self.uniforms['texture_object'].bind_int(0)
             self.uniforms['has_texture'].bind_int(1)
         else:
             self.uniforms['has_texture'].bind_int(0)
@@ -323,6 +327,7 @@ class Shader(BaseShaderProgram):
         self.bind_light_uniforms(model.scene.light, self.V)
 
     def bind_light_uniforms(self, light, V):
+        """Binds all relevant uniforms for a light to the shader."""
         light_pos_homog = glm.vec4(light.position, 1)
         self.uniforms['light_pos'].bind_vec3(glm.mul(V, light_pos_homog).xyz)
         self.uniforms['Ia'].bind_vec3(light.Ia)
@@ -330,6 +335,7 @@ class Shader(BaseShaderProgram):
         self.uniforms['Is'].bind_vec3(light.Is)
 
     def bind_material_uniforms(self, material):
+        """Binds all relevant uniforms for a material to the shader."""
         self.uniforms['Ka'].bind_vec3(material.Ka)
         self.uniforms['Kd'].bind_vec3(material.Kd)
         self.uniforms['Ks'].bind_vec3(material.Ks)
@@ -345,19 +351,50 @@ class Shader(BaseShaderProgram):
         glUseProgram(0)
 
 
+class PhongShader(Shader):
+    """
+    A shader which can use Phong or Blinn-Phong shading based on parameters.
+    """
+    def __init__(self, blinn, name=None):
+        if name is None:
+            if blinn:
+                name = "blinn"
+            else:
+                name = "phong"
+        
+        super().__init__(name)
+        self.add_uniform("blinn")
+        
+        self.blinn = blinn
+    
+    
+    def bind(self, model, M):
+        super().bind(model, M)
+        
+        if self.blinn:
+            self.uniforms["blinn"].bind_int(1)
+        else:
+            self.uniforms["blinn"].bind_int(0)
+
+
 class EnvironmentShader(BaseShaderProgram):
+    """
+    A shader for environment mapping.
+    """
     def __init__(self, env_map=None):
         super().__init__(name="environment")
         self.add_uniform('sampler_cube')
         self.add_uniform('VM')
         self.add_uniform('VM_it')
         self.add_uniform('V_t')
+        self.add_uniform("alpha")
 
         self.map = env_map
 
 
     def bind(self, model, M):        
         unit = len(model.mesh.textures)
+
         glActiveTexture(GL_TEXTURE0)
         self.map.bind()
         
@@ -373,3 +410,39 @@ class EnvironmentShader(BaseShaderProgram):
         self.uniforms['VM'].bind_mat4x4(glm.mul(V, M))
         self.uniforms['VM_it'].bind_mat4x4(glm.inverseTranspose(glm.mul(V, M)))
         self.uniforms['V_t'].bind_mat4x4(glm.transpose(V))
+        self.uniforms['alpha'].bind_float(model.mesh.material.d)
+
+
+class ShadowMappingShader(PhongShader):
+    """
+    A shader for shadow mapping combined with Phong/Blinn-Phong shading.
+    """
+    def __init__(self, shadow_map=None):
+        super().__init__(blinn=True, name='shadow_mapping')
+        self.add_uniform('shadow_map')
+        self.add_uniform('light_PV')
+        
+        self.shadow_map = shadow_map
+
+    def bind(self, model, M):
+        super().bind(model, M)
+        
+        self.uniforms['shadow_map'].bind_int(1)
+        
+        # Bind the shadow map to a different texture slot
+        glActiveTexture(GL_TEXTURE1)
+        self.shadow_map.bind()
+        glActiveTexture(GL_TEXTURE0)
+        
+        V = model.scene.camera.V
+        V_i = glm.inverse(V)
+
+        # Clip coordinates = P_s V_s V_vi
+        # Range is [-1, 1]
+        # Translate to move it to [0, 2]
+        # Scale it by 1/2 to move it to [0, 1]
+        light_PV = glm.scale(glm.vec3(0.5,0.5,0.5))\
+                * glm.translate(glm.vec3(1,1,1))\
+                * self.shadow_map.P * self.shadow_map.V * V_i
+                
+        self.uniforms["light_PV"].bind_mat4x4(light_PV)

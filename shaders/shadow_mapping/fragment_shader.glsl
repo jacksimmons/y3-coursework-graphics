@@ -1,133 +1,96 @@
-# version 130 // required to use OpenGL core standard
+# version 330
 
 //=== 'in' attributes are passed on from the vertex shader's 'out' attributes, and interpolated for each fragment
-in vec3 fragment_color;        // the fragment colour
 in vec3 fragment_pos;   // the position in view coordinates of this fragment
 in vec3 fragment_normal;     // the normal in view coordinates to this fragment
 in vec2 fragment_tex_coord;
+in vec4 fragment_pos_lightPV;
 
 //=== 'out' attributes are the output image, usually only one for the colour of each pixel
 out vec4 final_color;
 
 //=== uniforms
-uniform int mode;	// the rendering mode (better to code different shaders!)
 uniform int has_texture;
-uniform sampler2D textureObject; // texture object
+uniform sampler2D texture_object;
 uniform sampler2DShadow shadow_map;
-//uniform sampler2D old_map;
 
-// shadow map matrix
-// this shadow map matrix times the fragment shader position allows looking up the depth in the shadow map texture
-uniform mat4 shadow_map_matrix;
+uniform vec3 light_pos;
+uniform vec3 Ia;
+uniform vec3 Id;
+uniform vec3 Is;
 
-// material uniforms
-uniform vec3 Ka;    // ambient reflection properties of the material
-uniform vec3 Kd;    // diffuse reflection propoerties of the material
-uniform vec3 Ks;    // specular properties of the material
-uniform float Ns;   // specular exponent
+uniform vec3 Ka;
+uniform vec3 Kd;
+uniform vec3 Ks;
+uniform float Ns;
 
-// light source
-uniform vec3 light_pos; // light position in view space
-uniform vec3 Ia;    // ambient light properties
-uniform vec3 Id;    // diffuse properties of the light source
-uniform vec3 Is;    // specular properties of the light source
-
-uniform float alpha = 1.0f;
+uniform vec3 tex_scale;
+uniform float alpha;
+uniform int blinn;
 
 
-vec4 phong(vec4 texval);
+vec4 phong(vec4 texval)
+{
+    vec3 normal = normalize(fragment_normal);
+    vec3 light_dir = normalize(light_pos - fragment_pos);
+    vec3 camera_dir = -normalize(fragment_pos);
 
-vec4 phong(vec4 texval) {
-        // 1. calculate vectors used for shading calculations
-    // TODO WS4
-    vec3 camera_direction = -normalize(fragment_pos);
-    vec3 light_direction = normalize(light_pos - fragment_pos);
+    // === Ambient Reflection
+    vec4 ambient = vec4(Ka * Ia, alpha);
+    
+    // === Diffuse Reflection
+    // A . B = |A||B|cos(theta)
+    // |normal| and |light_dir| are 1
+    // => diff = cos(theta)
+    // If the angle > 90 deg, then dot product becomes negative.
+    // max function ensures negative lighting does not occur (which is undefined).
+    float angle_normal_light = max(dot(normal, light_dir), 0.0f);
+    vec4 diffuse = vec4(Kd * Id, alpha) * angle_normal_light;
 
-    // 2. now we calculate light components
-    // TODO WS4
-    vec4 ambient = vec4(Ia*Ka,alpha);
-    vec4 diffuse = vec4(Id*Kd*max(0.0f,dot(light_direction, fragment_normal)), alpha);
-    vec4 specular = vec4(Is*Ks*pow(max(0.0f, dot(reflect(light_direction, fragment_normal), -camera_direction)), Ns), alpha);
-
-    // 3. we calculate the attenuation function
-    // in this formula, dist should be the distance between the surface and the light
-    float dist = length(light_pos - fragment_pos);
-    float attenuation =  min(1.0/(dist*dist*0.005) + 1.0/(dist*0.05), 1.0);
-
-    // 5. Finally, we combine the shading components
-    return texval*ambient + attenuation*(texval*diffuse + specular);
+    // === Specular Reflection
+    // Need to negate light_dir, as it points toward the light.
+    // The `reflect` function expects a vector pointing out from
+    // the light source. It is then reflected over the normal.
+    
+    float spec = 0.0f;
+    if (blinn == 0)
+    {
+        // Phong
+        vec3 reflect_dir = reflect(-light_dir, normal);
+        spec = pow(max(dot(camera_dir, reflect_dir), 0.0f), Ns);
+    }
+    else
+    {
+        // Blinn-Phong
+        vec3 halfway_dir = normalize(light_dir + camera_dir);
+        spec = pow(max(dot(fragment_normal, halfway_dir), 0.0f), Ns);
+    }
+    vec4 specular = vec4(Is * Ks * spec, alpha);
+    
+    // Overwrite specular component if exponent is 0
+    if (Ns == 0) {
+        specular = vec4(0.0f);
+    }
+    
+    return (ambient + diffuse) * texval + specular;
 }
 
-///=== main shader code
-void main() {
 
-    // 4. we sample from the texture map
-    // the texture2D function just samples from the texture object at coordinates set by fragment_tex_coord
-    // using interpolation/extrapolation as set in the OpenGL program
+void main()
+{
     vec4 texval = vec4(1.0f);
     if(has_texture == 1)
-        texval = texture2D(textureObject, fragment_tex_coord);
-
-    final_color = vec4(0.0f);
-
-    // 5. Finally, we combine the shading components
+        texval = texture2D(texture_object, fragment_tex_coord * tex_scale.xy);
 
     final_color = phong(texval);
-
-    vec4 p = shadow_map_matrix*vec4(fragment_pos, 1);
-
-    //float zlight = texture(old_map, p.xy/p.w).r;
-
-    //if( zlight > -p.z/p.w )
-     //  final_color=vec4(0,0,0,0);
-
-    //final_color = vec4( 0, p.z/p.w/10, 0, 1.0f );
-
-    /*
-    if(p.z/p.w < 0)
-        final_color.x = 1.0;
-    else
-        if(p.z/p.w > 1)
-            final_color.z = 1.0;
-        else
-            final_color.y = p.z/p.w;
-
-    if(zlight < 1.01*p.z/p.w)
-        final_color = vec4(0);
-*/
-
-	if (p.w > 0)
-	{
-		p.xyz /= p.w;
-
-		//p.xyz = -p.xyz*0.5 + 0.5;
-
-		p.z *= 0.999;
-
-		// this is another alternative that also works:
-		//p.z -= 0.01;
-
-		float val = texture(shadow_map, p.xyz);
-        //if (val < 0.5f)
-		//	final_color.xyz = Ka*Ia*texval.xyz; //
-        final_color.xyz = (1.0-val)*Ka*Ia*texval.xyz + val*final_color.xyz;
-
-        //if (p.z > 0.9)
-         //   final_color.xyz = Ka*Ia*texval.xyz;
-
-        //final_color = vec4(p.z, 0.0f, 0.0f, 1.0f);
-        //final_color = vec4(texture(old_map, p.xy).r, 0.0f, 0.0f, 1.0f);
-        //final_color = vec4(-p.z, 0.0f, 0.0f, 1.0f);
-	}
-    //*/
-
-    //final_color.xyz = Ka*Ia*texval.xyz; //
-    //final_color = p;
-
-    //final_color = vec4( p.w/100, 0, 0, 1.0f );
-    //final_color = vec4( 0, texture(shadow_map,p.xyz), 0, 1.0f );
-    //final_color = vec4( 0, length(p)/100, 0, 1.0f );
-
+    vec4 p = fragment_pos_lightPV;
+    
+    if (p.w > 0)
+    {
+        p.xyz /= p.w;
+        p.z *= 0.999;
+        
+        float shadow = texture(shadow_map, p.xyz);
+        final_color.xyz = (1.0-shadow)*Ka*Ia*texval.xyz + shadow*final_color.xyz;
+    }
 }
-
-

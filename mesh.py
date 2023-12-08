@@ -4,6 +4,10 @@ import numpy as np
 from texture import Texture
 import glm
 
+from log import Logger
+
+logger = Logger(False, True, True)
+
 
 class Mesh:
     '''
@@ -30,18 +34,14 @@ class Mesh:
         self.binormals = None
 
         if vertices is not None:
-            print('Creating mesh')
-            print('- {} vertices'.format(self.vertices.shape[0]))
+            logger.info('Creating mesh')
+            logger.info('- {} vertices'.format(self.vertices.shape[0]))
             if faces is not None:
-                print('- {} faces'.format(self.faces.shape[0]))
-
-        #if faces is not None:
-        #    print('- {} vertices per face'.format(self.faces.shape[1]))
-            #print('- vertices ID in range [{},{}]'.format(np.min(self.faces.flatten()), np.max(self.faces.flatten())))
+                logger.info('- {} faces'.format(self.faces.shape[0]))
 
         if normals is None:
             if faces is None:
-                print('(W) Warning: the current code only calculates normals using the face vector of indices, which was not provided here.')
+                logger.warning('The current code only calculates normals using the face vector of indices, which was not provided here.')
             else:
                 self.calculate_normals()
         else:
@@ -49,10 +49,13 @@ class Mesh:
 
         if material.texture is not None:
             self.textures.append(Texture(material.texture))
-            #self.textures.append(Texture('lena.bmp'))
     
     
     def safe_normalise(self, arr):
+        """
+        Normalises a vector/matrix, unless its norm is 0.
+        If its norm is 0, returns the original vector/matrix.
+        """
         norm = np.linalg.norm(arr, axis=1, keepdims=True)
         if len(norm) == 1:
             if norm == 0:

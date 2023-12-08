@@ -7,20 +7,23 @@ class Material:
                  Ks=glm.vec3(1,1,1), Ns=10.0, texture=None):
         self.name = name
         
-        # Ambient colour
+        # Ambient, diffuse and specular colour components
         self.Ka = Ka
-        # Diffuse colour
         self.Kd = Kd
-        # Specular colour
         self.Ks = Ks
+
         # Specular exponent
         self.Ns = Ns
         
-        self.illumination = 0
+        # `illum` property, determines what type of shading was used in
+        # blender. E.g. illum 3 = environment mapping
+        self.illumination: int = 0
+
         self.texture = texture
-        self.tex_scale = glm.vec3(1, 1, 1)
+        self.tex_scale = glm.vec3(1, 1, 1) # Texture scaling, from .mtl "-s"
         
-        self.alpha = 1.0
+        # Visibility (alpha) of the material
+        self.d: float = 1.0
             
     
 

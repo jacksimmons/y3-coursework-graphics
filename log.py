@@ -1,4 +1,5 @@
 class Logger:
+    """A simple logging class to simplify messages to the console."""
     def __init__(self, infos: bool, warnings: bool, errors: bool):
         self.infos = infos
         self.warnings = warnings
@@ -7,17 +8,17 @@ class Logger:
     
     def info(self, msg):
         if self.infos:
-            print("(I) " + msg)
+            print("(I) " + str(msg))
     
     
     def warning(self, msg):
         if self.warnings:
-            print("(W) " + msg)
+            print("(W) " + str(msg))
     
     
     def error(self, msg):
         if self.errors:
-            input("(E) " + msg)
+            input("(E) " + str(msg))
     
     
     def type_error(self, desired_type: str, value):

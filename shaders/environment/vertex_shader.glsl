@@ -16,17 +16,9 @@ uniform int mode;	// the rendering mode (better to code different shaders!)
 
 void main(void)
 {
-    // 1. first, we transform the position using PVM matrix.
-    // note that gl_Position is a standard output of the
-    // vertex shader.
     gl_Position = PVM * vec4(position, 1.0f);
-
-    // 2. calculate vectors used for shading calculations
-    // those will be interpolate before being sent to the
-    // fragment shader.
-    // TODO WS4
     position_view_space = vec3(VM * vec4(position, 1.0f) );
     normal_view_space = normalize(VM_it * vec4(normal, 1.0f)).xyz;
-	fragment_tex_coord = normalize(-VM_it * vec4(position, 1.0f)).xyz;
+	//fragment_tex_coord = normalize(-VM_it * vec4(position, 1.0f)).xyz;
 	fragment_tex_coord = reflect(-normalize(position), normal);
 }

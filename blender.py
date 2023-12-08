@@ -7,18 +7,20 @@ from log import Logger
 
 '''
 Functions for reading models from blender. 
-Source: 
+Reference: 
 https://en.wikipedia.org/wiki/Wavefront_.obj_file
 
-The following assumptions are made (and may bug unless):
-    - Face format (v/vt/vn) is consistent for the whole file
-    - Only the line types covered are used (e.g. s, o or l lines aren't covered)
+The following are limitations for further use:
+    - Face format (how many of v/vt/vn are used on each line) must be consistent
+      for the whole file (the case for my models).
+    - Not all line types are covered (e.g. s, o or l lines aren't covered)
 '''
 
 logger = Logger(False, True, True)
 
 
 class Obj:
+    """A class for loading a .obj file."""
     def __init__(self, filename):
         self.filename = filename
         
@@ -260,6 +262,8 @@ class Obj:
             elif fields[0] == 'map_Kd':
                 material.texture = fields[1]
                 
+                # Material scale parameter - used by the road texture
+                # Passed to shaders.
                 if material.texture[0:2] == "-s":
                     val = glm.vec3([float(fields[2]), float(fields[3]),
                               float(fields[4])])

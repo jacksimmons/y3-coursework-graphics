@@ -1,0 +1,38 @@
+Done:
+Environment Mapping
+Illumination and Shading
+Texture Mapping
+Animated Object
+Shadows - Textures
+
+
+# === 3D Models (In scene.obj except for Trex and Aeroplane)
+City/Trees: https://sketchfab.com/3d-models/town-city-low-polygon-040805292d1d4c929cfebdbe0007fff4
+
+Trex (Riding shark): https://sketchfab.com/3d-models/mama-scarface-ac51ce40425545dcac70c3e34b9a0105#download
+Shark: https://sketchfab.com/3d-models/megalodon-a311be02d8fe4e86a33edc7426245e03
+
+Big Ben: https://sketchfab.com/3d-models/big-ben-58064c3815f34b759a5bbb75fb8d8eb2
+Bus: https://free3d.com/3d-model/tourist-bus-with-open-top-v2--502214.html
+Bridge: https://sketchfab.com/3d-models/rail-bridge-reworked-0f50f156d7fb449d9f458e16849b1e92
+Ferris wheel (London eye): https://sketchfab.com/3d-models/ferriswheel-ee7dd3d996e74921b625206862bae796
+Murky water texture: https://www.sketchuptextureclub.com/textures/nature-elements/water/streams/water-streams-texture-seamless-13295
+Pterodactyl:
+Tank: https://www.turbosquid.com/3d-models/fictional-pbr-tank-3d-model-1382107
+Smoke: https://www.turbosquid.com/3d-models/3d-explosion-cartoon-effects-animated-1932641
+
+Trex (Riding aeroplane): https://sketchfab.com/3d-models/dinosaur-texture-by-pop-obj-f6009a7bedb648f688f18e9bc03cc6ab#download        
+Aeroplane: https://sketchfab.com/3d-models/low-poly-plane-76230052903540e9aeb46b7db35329e4#download
+
+
+# === Skybox
+https://www.cleanpng.com/png-cube-mapping-skybox-reflection-mapping-texture-map-1274504/
+
+
+# === Code
+www.learnopengl.com for shaders
+https://learnopengl.com/Advanced-Lighting/Advanced-Lighting
+https://learnopengl.com/Advanced-Lighting/Shadows/Shadow-Mapping
+
+[0] https://math.stackexchange.com/questions/237369/given-this-transformation-matrix-how-do-i-decompose-it-into-translation-rotati
+[1] https://www.khronos.org/opengl/wiki/Layout_Qualifier_(GLSL)

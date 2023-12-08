@@ -1,4 +1,5 @@
 from OpenGL.GL import *
+from OpenGL.GLU import gluErrorString
 
 
 class Framebuffer:
@@ -42,3 +43,6 @@ class Framebuffer:
             glReadBuffer(GL_NONE)
 
         self.unbind()
+        status = glCheckFramebufferStatus(GL_FRAMEBUFFER)
+        if status != GL_FRAMEBUFFER_COMPLETE:
+            input(gluErrorString(status))

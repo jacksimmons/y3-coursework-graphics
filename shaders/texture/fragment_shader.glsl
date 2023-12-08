@@ -10,7 +10,7 @@ out vec4 final_color;
 
 
 // texture samplers
-uniform sampler2D textureObject; // first texture object
+uniform sampler2D texture_object; // first texture object
 
 ///=== main shader code
 void main() {
@@ -18,7 +18,7 @@ void main() {
     vec4 texval = vec4(1.0f);
 
     // sample from the texture
-    texval = texture2D(textureObject, fragment_tex_coord);
+    texval = texture2D(texture_object, fragment_tex_coord);
 
     // 5. Finally, we combine the shading components
     // we do not apply the texture to the specular component.

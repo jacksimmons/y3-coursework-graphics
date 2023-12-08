@@ -1,11 +1,14 @@
 from OpenGL.GL import *
 
 import glm
+import numpy as np
 
 from mesh import Mesh
 from texture import Texture
-from shaders import Shader, EnvironmentShader
-from matutils import poseMatrix
+from shaders import Shader, EnvironmentShader, ShadowMappingShader, PhongShader 
+from log import Logger
+
+logger = Logger(False, True, True)
 
 
 class Model:
@@ -18,6 +21,7 @@ class Model:
         self.primitive = primitive
         self.color = colour
 
+        self.shaders = {}
         self.shader = None
 
         self.mesh = mesh
@@ -42,7 +46,7 @@ class Model:
         #print(f"Initialising VBO for attribute {name}.")
 
         if data is None:
-            print(f"Warning in {self.__class__.__name__}.initialise_vbo: Data array for attribute \
+            logger.warning(f"{self.__class__.__name__}.initialise_vbo: Data array for attribute \
 {name} is None.")
             self.missing_attributes.append(name)
             return
@@ -72,16 +76,48 @@ class Model:
         linked.
         """
 
-        if self.shader is not None and self.shader.name is shader:
+        if shader.name in self.shaders:
+            logger.warning(f"{shader.name} shader already assigned to model.")
             return
         
-        if isinstance(shader, str):
-            self.shader = Shader(shader)
-        else:
-            self.shader = shader
+        self.shaders[shader.name] = shader
                 
         # Bind all attributes and compile it
-        self.shader.compile()
+        shader.compile()
+    
+    
+    def set_shader(self, name: str):
+        """Set shader based on name."""
+        if name == "default":
+            self.set_shader_default()
+        
+        if name not in self.shaders:
+            logger.info(f"{name} shader not present so can't be activated.")
+            return
+        
+        self.shader = self.shaders[name]
+    
+    
+    def set_shader_default(self):
+        """Set shader to its default value, based on a descending priority."""
+        if "environment" in self.shaders:
+            self.shader = self.shaders["environment"]
+        elif "shadow_mapping" in self.shaders:
+            self.shader = self.shaders["shadow_mapping"]
+        elif "blinn" in self.shaders:
+            self.shader = self.shaders["blinn"]
+        elif "phong" in self.shaders:
+            self.shader = self.shaders["phong"]
+        elif "flat" in self.shaders:
+            self.shader = self.shaders["flat"]
+        else:
+            # Can be safely assumed that this model only has
+            # one shader; assign it by default.
+            if len(self.shaders) == 0:
+                logger.error("No shaders.")
+                return
+            self.shader = list(self.shaders.values())[0]
+            print(self.shader.name)
 
 
     def bind(self):
@@ -112,7 +148,7 @@ class Model:
         glBindBuffer(GL_ARRAY_BUFFER, 0)
 
 
-    def draw(self, Mp=glm.mat4()):
+    def draw(self):
         """
         Draw using OpenGL functions.
         """
@@ -124,7 +160,7 @@ class Model:
 
         self.shader.bind(
             model=self,
-            M=glm.mul(Mp, self.M)
+            M=self.M
         )
 
         # Bind vao
@@ -132,7 +168,7 @@ class Model:
 
         # Bind all textures. Shader must handle each texture with a sampler object.
         for unit, tex in enumerate(self.mesh.textures):
-            glActiveTexture(GL_TEXTURE0 + unit)
+            glActiveTexture(GL_TEXTURE0)
             tex.bind()
 
         # Check whether stored as vertex or index array
@@ -143,10 +179,6 @@ class Model:
 
         # Unbind vao
         glBindVertexArray(0)
-    
-
-    def set_position(self, position):
-        self.M = glm.translate(position)
 
 
     def __del__(self):
@@ -161,7 +193,8 @@ class DrawModelFromMesh(Model):
     Base class for all models, inherit from this to create new models
     '''
 
-    def __init__(self, scene, M, mesh, name=None, shader=None, visible=True):
+    def __init__(self, scene, M, mesh, env_map=None, shadows=None,
+                 name=None, shader=None, visible=True):
         '''
         Initialises the model data
         '''
@@ -177,14 +210,22 @@ class DrawModelFromMesh(Model):
         else:
             print(f"(E) Error in DrawModelFromObjFile.__init__(): index array must have 3 (triangles) or 4 (quads) columns, found {self.indices.shape[1]}!")
             raise
-
+        
         self.bind()
         
-        if mesh.material is not None:
-            if mesh.material.illumination >= 3:
-                shader = EnvironmentShader()
-            else:
-                shader = Shader("flat")
-
         if shader is not None:
+            # Non-standard shader, won't have shadows assigned (only case
+            # where maps don't need to be assigned)
             self.bind_shader(shader)
+        else:
+            if mesh.material is not None and mesh.material.illumination >= 3:
+                self.bind_shader(EnvironmentShader(env_map))
+            else:
+                # Bind both phong and blinn-phong shaders
+                self.bind_shader(PhongShader(blinn=True))
+                self.bind_shader(PhongShader(blinn=False))
+            
+            if shadows is not None:
+                self.bind_shader(ShadowMappingShader(shadows))
+
+        self.set_shader_default()

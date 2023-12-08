@@ -116,7 +116,7 @@ class FlattenCubeMap(DrawModelFromMesh):
         # Finishes initialising the mesh
         super().__init__(scene=scene, M=glm.translate(glm.vec3(0,0,1)),
                          mesh=mesh, shader=FlattenedCubeShader(),
-                         visible=False)
+                         name="FlattenedCube", visible=False)
 
     def set(self, cube):
         '''

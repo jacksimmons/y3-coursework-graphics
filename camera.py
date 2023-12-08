@@ -1,10 +1,10 @@
 import glm
+from matrix import Matrix
 
 
 class Camera:
     """
-    Class which abstracts the thread behaviour of the camera. Gets the View
-    Matrix from the camera thread when it is put() into the shared queue.
+    Class which abstracts the behaviour of the camera.
     """
     def __init__(self):
         self.V = glm.mat4() # View
@@ -18,29 +18,8 @@ class Camera:
         self.update()
     
     
-    def rotate_about_point(self, a, b):
-        """
-        Parameters
-        ----------
-        a : vec3
-            The point to rotate.
-        b : vec3
-            The center of rotation.
-
-        Returns
-        -------
-        A mat4 corresponding to the rotation of a about b.
-        """
-        
-        ab: glm.vec3 = glm.sub(b, a)
-        T_AB = glm.translate(ab)
-        T_BA = glm.translate(glm.neg(ab))
-        
-        return glm.mul( glm.mul(T_BA, self._R), T_AB )
-        #return np.matmul(np.matmul(T_BA, self._R), T_AB)
-    
-    
     def add_rotation(self, angles):
+        """Adds a rotation to the camera's view matrix."""
         # Get the camera's axes
         y_hat = self.get_camera_y_axis()
         z_hat = self.get_camera_z_axis()
@@ -55,17 +34,14 @@ class Camera:
         rot = y_rot * z_rot * x_rot
         
         # Apply the additional rotation to our matrix by multiplication
-        self._R = glm.mul(glm.mat4_cast(rot), self._R)
+        self._R = (glm.mat4_cast(rot) * self._R)
+        
+        self.update()
     
     
     def rotate_vector(self, vector):
-        return glm.mul(self._R, glm.vec4(vector, 1)).xyz
-    
-    
-    def rotate_around(self, point, normal, speed=1):
-        center_point_dir = glm.normalize(glm.sub(point, self._center))
-        new_dir = glm.cross(normal, center_point_dir)
-        return glm.add(point, glm.mul(speed, new_dir))
+        """Rotates a vector by the camera's view matrix."""
+        return (self._R * glm.vec4(vector, 1)).xyz
 
     
     def get_camera_x_axis(self, y_hat, z_hat):
@@ -98,7 +74,7 @@ class Camera:
         """
         Gets the z axis of the view coordinate space.
         """
-        z_start = glm.sub(self._center, self._eye)
+        z_start = self._center - self._eye
         return glm.normalize(self.rotate_vector(z_start))
     
     
@@ -107,6 +83,7 @@ class Camera:
         Creates a matrix from a displacement vector, then multiplies the
         existing displacement matrix (self._D) by it.
         "Stacks" a camera translation on top of previous translations.
+        View matrix requires recalculation after this, so calls update().
         
         Parameters
         ----------
@@ -116,12 +93,14 @@ class Camera:
         y_hat = self.get_camera_y_axis()
         z_hat = self.get_camera_z_axis()
         
-        m_y = glm.mul(d.y, y_hat)
-        m_z = glm.mul(d.z, z_hat)
-        m_x = glm.mul(d.x, self.get_camera_x_axis(y_hat, z_hat))
+        m_y = d.y * y_hat
+        m_z = d.z * z_hat
+        m_x = d.x * self.get_camera_x_axis(y_hat, z_hat)
         
         M_add = glm.translate(m_x + m_y + m_z)
-        self._D = glm.mul(M_add, self._D)
+        self._D = M_add * self._D
+        
+        self.update()
     
     
     def update(self):
@@ -134,10 +113,11 @@ class Camera:
         Combining these gives the view matrix.
         """
         
-        rot_center_about_eye: glm.mat4x4 = self.rotate_about_point(self._center, glm.neg(self._eye))
-        center = glm.mul(self._D, glm.mul(rot_center_about_eye, glm.vec4(self._center, 1))).xyz
+        rot_center_about_eye: glm.mat4x4 =\
+            Matrix.rotate_about_point(self._center, -self._eye, self._R)
+        center = (self._D * rot_center_about_eye * glm.vec4(self._center, 1)).xyz
         
-        eye = glm.mul(self._D, glm.vec4(self._eye, 1)).xyz
-        up = glm.mul(self._R, glm.vec4(self._up, 1)).xyz
+        eye = (self._D * glm.vec4(self._eye, 1)).xyz
+        up = (self._R * glm.vec4(self._up, 1)).xyz
 
         self.V = glm.lookAt(eye, center, up)
